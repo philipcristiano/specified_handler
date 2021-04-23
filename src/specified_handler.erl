@@ -20,7 +20,9 @@ upgrade(Req = #{method := Method}, _Env, Handler, HandlerState) ->
             handle_req(Req, Spec, Handler, HandlerState)
         of
             {Req1, Code, Data, State} ->
-                respond(Req1, Code, Data, State)
+                respond(Req1, Code, Data, State);
+            {Req1, Code, Headers, Data, State} ->
+                respond(Req1, Code, Headers, Data, State)
         catch
             {missing_required_key, Key} ->
                 respond(
@@ -194,24 +196,27 @@ upgrade(Req = #{method := Method}, _Env, Handler, HandlerState) ->
 handle_req(Req, Spec, Handler, HandlerState) ->
     Params = params_from_request(Req, Spec),
     {Req1, BodyData} = body_from_request(Req, Spec),
-    {HandlerReq, Code, Data, State} = Handler:handle_req(
+    Handler:handle_req(
         Req1,
         Params,
         BodyData,
         HandlerState
-    ),
-    _ResponseSpec = response_spec(Spec, Code),
-    {HandlerReq, Code, Data, State}.
+    ).
 
 respond(Req, Code = 204, _Value, Opts) ->
     % 204 can't have a body, do this to avoid trying to jsx encode
-    Req1 = cowboy_req:reply(Code, #{}, <<"">>, Req),
-    {ok, Req1, Opts};
+    respond(Req, Code, #{}, <<"">>, Opts);
 respond(Req, Code, Value, Opts) ->
+    respond(Req, Code, #{}, Value, Opts).
+
+respond(Req, Code = 204, Headers, _Value, Opts) when is_map(Headers) ->
+    Req1 = cowboy_req:reply(Code, Headers, <<"">>, Req),
+    {ok, Req1, Opts};
+respond(Req, Code, Headers, Value, Opts) when is_map(Headers) ->
     Data = jsx:encode(Value),
     Req1 = cowboy_req:reply(
         Code,
-        #{
+        Headers#{
             <<"content-type">> => <<"application/json">>
         },
         Data,
