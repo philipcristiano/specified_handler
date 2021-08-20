@@ -262,6 +262,7 @@ match_params(
     % Pick the default value to use based on type
     DefaultLookupTable = #{
         string => {undefined, fun noop/1},
+        integer => {undefined, fun erlang:binary_to_integer/1},
         array => {[], fun wrap_list_if_needed/1}
     },
     #{Type := {DefaultDefault, PostFunc}} = DefaultLookupTable,
