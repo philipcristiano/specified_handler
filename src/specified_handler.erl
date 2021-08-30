@@ -262,6 +262,7 @@ match_params(
     % Pick the default value to use based on type
     DefaultLookupTable = #{
         string => {undefined, fun noop/1},
+        integer => {undefined, fun int_or_incorrect_type/1},
         array => {[], fun wrap_list_if_needed/1}
     },
     #{Type := {DefaultDefault, PostFunc}} = DefaultLookupTable,
@@ -519,4 +520,12 @@ decode_or_throw(Bin, Throw) ->
     case jsx:is_json(Bin) of
         true -> jsx:decode(Bin, [return_maps]);
         false -> throw(Throw)
+    end.
+
+int_or_incorrect_type(Value) ->
+    io:format("Typecheck ~p~n", [Value]),
+    try erlang:binary_to_integer(Value) of
+        IntVal -> IntVal
+    catch
+        error:badarg -> throw({incorrect_type, Value, integer})
     end.
