@@ -196,11 +196,17 @@ upgrade(Req = #{method := Method}, _Env, Handler, HandlerState) ->
 handle_req(Req, Spec, Handler, HandlerState) ->
     Params = params_from_request(Req, Spec),
     {Req1, BodyData} = body_from_request(Req, Spec),
+    {Req2, Params2, BD2, HS2} =
+        case erlang:function_exported(Handler, pre_req, 4) of
+            false -> {Req1, Params, BodyData, Handler};
+            true -> Handler:pre_req(Req1, Params, BodyData, HandlerState)
+        end,
+
     Handler:handle_req(
-        Req1,
-        Params,
-        BodyData,
-        HandlerState
+        Req2,
+        Params2,
+        BD2,
+        HS2
     ).
 
 respond(Req, Code = 204, _Value, Opts) ->
