@@ -483,9 +483,8 @@ body_from_request(Req = #{has_body := true}, Spec) ->
             true ->
                 maps:get(ContentTypeAtom, SpecContent)
         end,
-
     {ok, Body, Req1} = cowboy_req:read_body(Req),
-    Data = decode_or_throw(Body, {invalid_json, Body}),
+    Data = decode_or_throw(ContentType, Body, {invalid_json, Body}),
     #{schema := Schema} = ContentSpec,
     ParsedData = match_schema(Schema, Data),
 
@@ -522,7 +521,11 @@ noop(X) -> X.
 wrap_list_if_needed(X) when is_list(X) -> X;
 wrap_list_if_needed(X) -> [X].
 
-decode_or_throw(Bin, Throw) ->
+decode_or_throw(<<"application/x-www-form-urlencoded">>, Bin, _Throw) ->
+    io:format("Body ~p~n", [Bin]),
+    PLBody = cow_qs:parse_qs(Bin),
+    maps:from_list(PLBody);
+decode_or_throw(<<"application/json">>, Bin, Throw) ->
     case jsx:is_json(Bin) of
         true -> jsx:decode(Bin, [return_maps]);
         false -> throw(Throw)

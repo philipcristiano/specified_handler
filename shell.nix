@@ -3,19 +3,20 @@ let
   releasedPkgs = sysPkg.fetchFromGitHub {
     owner = "NixOS";
     repo = "nixpkgs";
-    rev = "20.09";
-    sha256 = "1wg61h4gndm3vcprdcg7rc4s1v3jkm5xd7lw8r2f67w502y94gcy";
+    rev = "22.05";
+    sha256 = "sha256-M6bJShji9AIDZ7Kh7CPwPBPb/T7RiVev2PAcOi4fxDQ=";
   };
-  stdenv = released_pkgs.stdenv;
-  released_pkgs = import releasedPkgs {};
+  pkgs = import releasedPkgs {};
+  stdenv = pkgs.stdenv;
+  extraInputs = sysPkg.lib.optionals stdenv.isDarwin (with sysPkg.darwin.apple_sdk.frameworks; [
+    Cocoa
+    CoreServices]);
 
 in stdenv.mkDerivation {
   name = "env";
-  buildInputs = [ released_pkgs.gnumake
-                  released_pkgs.erlangR23
-                  released_pkgs.wget
-                ];
-  shellHook = ''
-  '';
+  buildInputs = [ pkgs.gnumake
+                  pkgs.erlangR24
+                  pkgs.wget
+                ] ++ extraInputs;
 
 }
