@@ -255,6 +255,31 @@ match_params(
     _Params = [
         _Spec = #{
             name := Name,
+            in := path,
+            schema := #{
+                type := Type
+            } = Schema
+        }
+        | T
+    ],
+    Req
+) ->
+    DefaultLookupTable = #{
+        string => fun noop/1,
+        integer => fun int_or_incorrect_type/1,
+        array => fun wrap_list_if_needed/1
+    },
+    #{Type := PostFunc} = DefaultLookupTable,
+
+    CowboyValue = cowboy_req:binding(Name, Req),
+    Value = PostFunc(CowboyValue),
+
+    Param = validate_property_spec(Value, Schema),
+    [{Name, Param} | match_params(T, Req)];
+match_params(
+    _Params = [
+        _Spec = #{
+            name := Name,
             in := query,
             required := IsRequired,
             schema := #{
