@@ -194,7 +194,7 @@ upgrade(Req = #{method := Method}, _Env, Handler, HandlerState) ->
     Response.
 
 handle_req(Req, Spec, Handler, HandlerState) ->
-    Params = params_from_request(Req, Spec),
+    Params = maps:from_list(params_from_request(Req, Spec)),
     {Req1, BodyData} = body_from_request(Req, Spec),
     {Req2, Params2, BD2, HS2} =
         case erlang:function_exported(Handler, pre_req, 4) of
