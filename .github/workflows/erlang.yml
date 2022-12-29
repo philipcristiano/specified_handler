@@ -7,30 +7,34 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container:
-      image: erlang:22
+      image: erlang:25
 
     steps:
     - uses: actions/checkout@v1
+
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cache/rebar3
+          _build
+        key: ${{ runner.os }}-erlang-${{ env.OTP_VERSION }}-${{ hashFiles('**/*rebar.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-erlang-${{ env.OTP_VERSION }}-
+
     - name: Compile
-      run: make deps app
+      run: make compile
       env:
         GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
     - name: Run tests
       env:
         COVER: "1"
       run: |
-        make tests
+        make test
 
         # Covert coverage data to XML
-        ./bin/covertool -cover cover/ct.coverdata -output cover/cover.ct.xml
-        ./bin/covertool -cover cover/eunit.coverdata -output cover/cover.eunit.xml
+        mkdir -p cover
+        ./bin/covertool -cover _build/test/cover/eunit.coverdata -output cover/cover.eunit.xml
 
-    - name: Upload CT test coverage data to CodeCov
-      uses: codecov/codecov-action@v1
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        name: ct
-        file: "./cover/cover.ct.xml"
 
     - name: Upload eunit test coverage data to CodeCov
       uses: codecov/codecov-action@v1
@@ -42,13 +46,22 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     container:
-      image: erlang:22
+      image: erlang:25
 
     steps:
     - uses: actions/checkout@v1
 
+    - uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cache/rebar3
+          _build
+        key: ${{ runner.os }}-erlang-${{ env.OTP_VERSION }}-${{ hashFiles('**/*rebar.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-erlang-${{ env.OTP_VERSION }}-
+
     - name: Compile
-      run: make deps app
+      run: make compile
       env:
         GIT_SSH_COMMAND: "ssh -o StrictHostKeyChecking=no"
 

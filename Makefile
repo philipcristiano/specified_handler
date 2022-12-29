@@ -1,22 +1,28 @@
-PROJECT = specified_handler
-PROJECT_DESCRIPTION = New project
-PROJECT_VERSION = 0.1.0
+.PHONY: deps
+deps:
+	./rebar3 deps
 
-BUILD_DEPS = erlfmt
-DEPS = jsx
-TEST_DEPS = meck trails
+.PHONY: compile
+compile:
+	./rebar3 compile
 
-TEST_DIR = tests
-DIALYZER_DIRS = --src src tests
+.PHONY: shell
+shell: compile
+	./rebar3 shell
 
-dep_erlfmt = git https://github.com/WhatsApp/erlfmt.git v0.8.0
-dep_trails = hex 2.0.0
+.PHONY: dialyze
+dialyze:
+	./rebar3 dialyzer
 
-include erlang.mk
+.PHONY: test
+test:
+	rm -rf _build/test/cover
+	./rebar3 eunit
+
 
 erlfmt:
-	$(gen_verbose) $(SHELL_ERL) -pa $(SHELL_PATHS) -eval 'erlfmt_cli:do("erlfmt", [write, {files, ["src/*.erl", "tests/*.erl"]} ]), halt(0)'
+	./rebar3 fmt -w
 
 erlfmt_check:
-	$(gen_verbose) $(SHELL_ERL) -pa $(SHELL_PATHS) -eval 'erlfmt_cli:do("erlfmt", [check, {files, ["src/*.erl", "tests/*.erl"]} ]), halt(0)'
+	./rebar3 fmt --check
 
