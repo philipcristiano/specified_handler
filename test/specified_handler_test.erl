@@ -6,12 +6,14 @@
 -define(TEST_HANDLER, specified_handler_test_handler_mod).
 
 load() ->
+    application:ensure_all_started(trails),
     meck:new(?TEST_HANDLER, [non_strict]),
     ok.
 
 unload() ->
     true = meck:validate(?TEST_HANDLER),
     meck:unload(?TEST_HANDLER),
+    application:stop(trails),
     ok.
 
 req() ->
@@ -32,6 +34,7 @@ req(Method, Opts) when is_binary(Method) and erlang:is_map(Opts) ->
     Ref = make_ref(),
     Req = #{
         pid => self(),
+        path => <<"/path">>,
         has_body => false,
         method => Method,
         headers => #{<<"content-type">> => <<"application/json">>},
@@ -76,7 +79,8 @@ http_get_test() ->
             }
         }
     },
-    Trails = [trails:trail("/path", ?TEST_HANDLER, #{}, Metadata)],
+    Trails = [trails:trail(<<"/path">>, ?TEST_HANDLER, #{}, Metadata)],
+    ok = trails:store(Trails),
     Ref = make_ref(),
 
     meck:expect(?TEST_HANDLER, trails, [], Trails),
@@ -132,7 +136,8 @@ http_get_by_param_test() ->
             }
         }
     },
-    Trails = [trails:trail("/path", ?TEST_HANDLER, #{}, Metadata)],
+    Trails = [trails:trail(<<"/path">>, ?TEST_HANDLER, #{}, Metadata)],
+    trails:store(Trails),
     Ref = make_ref(),
 
     meck:expect(?TEST_HANDLER, trails, [], Trails),
@@ -191,7 +196,8 @@ http_get_by_param_incorrect_type_int_test() ->
             }
         }
     },
-    Trails = [trails:trail("/path", ?TEST_HANDLER, #{}, Metadata)],
+    Trails = [trails:trail(<<"/path">>, ?TEST_HANDLER, #{}, Metadata)],
+    trails:store(Trails),
     Ref = make_ref(),
 
     meck:expect(?TEST_HANDLER, trails, [], Trails),

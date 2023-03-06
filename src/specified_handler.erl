@@ -4,19 +4,13 @@
 
 -export([upgrade/4]).
 
--export([
-    method_metadata/2,
-    response_spec/2,
-    response_spec/3
-]).
-
 -callback handle_req(cowboy_req:req(), any()) ->
     {cowboy_req:req(), integer(), any(), cowboy_http:opts()}.
 
 upgrade(Req = #{method := Method}, _Env, Handler, HandlerState) ->
     Response =
         try
-            Spec = method_metadata(Handler, Method),
+            Spec = method_metadata(Req, Handler, Method),
             handle_req(Req, Spec, Handler, HandlerState)
         of
             {Req1, Code, Data, State} ->
@@ -473,10 +467,10 @@ validate_any_of([Hv | Tv], [Ha = #{type := object} | Ta], Errors) ->
         end,
     [Validated | validate_any_of(Tv, [Ha | Ta], [])].
 
-method_metadata(Handler, Method) ->
+method_metadata(_Req = #{path := Path}, _Handler, Method) ->
     LowerMethod = string:lowercase(Method),
-    [Trails] = Handler:trails(),
-    Metadata = trails:metadata(Trails),
+    Trail = trails:retrieve(Path),
+    Metadata = trails:metadata(Trail),
     case maps:is_key(LowerMethod, Metadata) of
         false -> throw({method_not_defined, LowerMethod});
         true -> maps:get(LowerMethod, Metadata)
@@ -514,15 +508,6 @@ body_from_request(Req = #{has_body := true}, Spec) ->
     ParsedData = match_schema(Schema, Data),
 
     {Req1, ParsedData}.
-
-response_spec(Spec, Code) ->
-    Responses = maps:get(responses, Spec, #{}),
-    CodeSpec = maps:get(Code, Responses),
-    CodeSpec.
-
-response_spec(Handler, Method, Code) ->
-    Spec = method_metadata(Handler, Method),
-    response_spec(Spec, Code).
 
 ensure_binary(Bin) when is_binary(Bin) ->
     Bin;
