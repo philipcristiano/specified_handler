@@ -192,7 +192,7 @@ handle_req(Req, Spec, Handler, HandlerState) ->
     {Req1, BodyData} = body_from_request(Req, Spec),
     {Req2, Params2, BD2, HS2} =
         case erlang:function_exported(Handler, pre_req, 4) of
-            false -> {Req1, Params, BodyData, Handler};
+            false -> {Req1, Params, BodyData, HandlerState};
             true -> Handler:pre_req(Req1, Params, BodyData, HandlerState)
         end,
 
