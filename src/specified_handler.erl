@@ -1,6 +1,7 @@
 -module(specified_handler).
 
 -include_lib("kernel/include/logger.hrl").
+-include_lib("opentelemetry_api/include/otel_tracer.hrl").
 
 -export([upgrade/4]).
 
@@ -11,7 +12,14 @@ upgrade(Req = #{method := Method}, _Env, Handler, HandlerState) ->
     Response =
         try
             Spec = method_metadata(Req, Handler, Method),
-            handle_req(Req, Spec, Handler, HandlerState)
+
+            ?with_span(
+                <<"http_request">>,
+                #{attributes => #{handler => Handler, method => Method}},
+                fun(_Ctx) ->
+                    handle_req(Req, Spec, Handler, HandlerState)
+                end
+            )
         of
             {Req1, Code, Data, State} ->
                 respond(Req1, Code, Data, State);
