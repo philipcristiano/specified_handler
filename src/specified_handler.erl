@@ -1,14 +1,9 @@
 -module(specified_handler).
 
 -include_lib("kernel/include/logger.hrl").
+-include_lib("opentelemetry_api/include/otel_tracer.hrl").
 
 -export([upgrade/4]).
-
--export([
-    method_metadata/2,
-    response_spec/2,
-    response_spec/3
-]).
 
 -callback handle_req(cowboy_req:req(), any()) ->
     {cowboy_req:req(), integer(), any(), cowboy_http:opts()}.
@@ -16,8 +11,15 @@
 upgrade(Req = #{method := Method}, _Env, Handler, HandlerState) ->
     Response =
         try
-            Spec = method_metadata(Handler, Method),
-            handle_req(Req, Spec, Handler, HandlerState)
+            Spec = method_metadata(Req, Handler, Method),
+
+            ?with_span(
+                <<"http_request">>,
+                #{attributes => #{handler => Handler, method => Method}},
+                fun(_Ctx) ->
+                    handle_req(Req, Spec, Handler, HandlerState)
+                end
+            )
         of
             {Req1, Code, Data, State} ->
                 respond(Req1, Code, Data, State);
@@ -198,7 +200,7 @@ handle_req(Req, Spec, Handler, HandlerState) ->
     {Req1, BodyData} = body_from_request(Req, Spec),
     {Req2, Params2, BD2, HS2} =
         case erlang:function_exported(Handler, pre_req, 4) of
-            false -> {Req1, Params, BodyData, Handler};
+            false -> {Req1, Params, BodyData, HandlerState};
             true -> Handler:pre_req(Req1, Params, BodyData, HandlerState)
         end,
 
@@ -473,10 +475,10 @@ validate_any_of([Hv | Tv], [Ha = #{type := object} | Ta], Errors) ->
         end,
     [Validated | validate_any_of(Tv, [Ha | Ta], [])].
 
-method_metadata(Handler, Method) ->
+method_metadata(_Req = #{path := Path}, _Handler, Method) ->
     LowerMethod = string:lowercase(Method),
-    [Trails] = Handler:trails(),
-    Metadata = trails:metadata(Trails),
+    Trail = trails:retrieve(Path),
+    Metadata = trails:metadata(Trail),
     case maps:is_key(LowerMethod, Metadata) of
         false -> throw({method_not_defined, LowerMethod});
         true -> maps:get(LowerMethod, Metadata)
@@ -514,15 +516,6 @@ body_from_request(Req = #{has_body := true}, Spec) ->
     ParsedData = match_schema(Schema, Data),
 
     {Req1, ParsedData}.
-
-response_spec(Spec, Code) ->
-    Responses = maps:get(responses, Spec, #{}),
-    CodeSpec = maps:get(Code, Responses),
-    CodeSpec.
-
-response_spec(Handler, Method, Code) ->
-    Spec = method_metadata(Handler, Method),
-    response_spec(Spec, Code).
 
 ensure_binary(Bin) when is_binary(Bin) ->
     Bin;
